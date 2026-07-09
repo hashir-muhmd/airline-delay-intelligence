@@ -39,7 +39,7 @@ React dashboard   Flutter mobile app
 
 This project is being built incrementally with real commit history, not uploaded as a finished product. Current progress:
 
-- [ ] Ingestion service + database schema
+- [x] Ingestion service + database schema
 - [ ] Exploratory data analysis
 - [ ] Delay classification + regression models
 - [ ] Cascade propagation model
