@@ -11,11 +11,35 @@ def get_connection():
     return psycopg2.connect(DATABASE_URL)
 
 
+def ensure_airport_exists(conn, code: str):
+    """
+    Flights reference origin/destination airports via foreign key.
+    AviationStack returns flights to/from airports we haven't seeded yet
+    (e.g. FCO, LHR), so insert a minimal stub row if the code is new.
+    Full details (name, city, country, coordinates) can be filled in later.
+    """
+    if not code:
+        return
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO airports (code)
+            VALUES (%s)
+            ON CONFLICT (code) DO NOTHING;
+            """,
+            (code,),
+        )
+        conn.commit()
+
+
 def insert_flight(conn, flight: dict):
     """
     Insert a flight row, skipping duplicates (same flight_number + scheduled_departure).
     Returns the flight id (existing or newly inserted).
     """
+    ensure_airport_exists(conn, flight.get("origin"))
+    ensure_airport_exists(conn, flight.get("destination"))
+
     with conn.cursor() as cur:
         cur.execute(
             """
