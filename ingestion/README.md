@@ -31,8 +31,9 @@ This is expected airline-industry behavior, not a data bug. Implication:
   aircraft rotation anyway.
 
 ### Airport enrichment status
-As of 2026-07-11, only 1 of 82 airports in the `airports` table has enriched
-metadata (name, city, country, lat/long). The remaining 81 are auto-created
-stub rows (code only) from `ensure_airport_exists()`. Enrichment from a public
-airport reference dataset (e.g. OurAirports) is a planned next step before
-building the map-based dashboard.
+Resolved 2026-07-12. All airport rows are enriched with real metadata (name,
+city, country, latitude, longitude) sourced from the OurAirports public
+dataset (https://ourairports.com/data/airports.csv), matched by IATA code.
+See `scripts/enrich_airports.py`. As new airports appear (new routes/
+destinations), re-run this script to enrich them — it only updates rows
+currently missing name/latitude, so it's safe to re-run anytime.
