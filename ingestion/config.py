@@ -23,7 +23,8 @@ TRACKED_AIRPORTS = [
 # AviationStack free tier = 100 requests/month.
 # Each call returns up to 100 flights for a given airport query, so we poll
 # infrequently but broadly (departures + arrivals) rather than per-flight.
-AVIATIONSTACK_POLLS_PER_DAY = 3  # e.g. morning / afternoon / evening
+# 1 poll/day × 2 calls/airport × 1 airport × 30 days = 60 calls/month (safe margin).
+AVIATIONSTACK_POLLS_PER_DAY = 1  # once daily
 AVIATIONSTACK_BASE_URL = "http://api.aviationstack.com/v1/flights"
 
 # OpenWeatherMap free tier = 1,000 calls/day, so this can run far more often.

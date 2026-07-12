@@ -1,7 +1,7 @@
 # ingestion/scheduler.py
 """
 Runs the ingestion jobs on a schedule:
-- AviationStack: a few times a day (respects 100 req/month free tier)
+- AviationStack: once a day (respects 100 req/month free tier; 60 calls/month)
 - OpenWeatherMap: hourly (well within 1,000 req/day free tier)
 
 Run with: python scheduler.py
@@ -54,8 +54,8 @@ def run_weather_ingestion():
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
 
-    # AviationStack: 3x/day -> roughly every 8 hours
-    scheduler.add_job(run_flight_ingestion, "interval", hours=8, id="flight_ingestion")
+    # AviationStack: 1x/day -> every 24 hours
+    scheduler.add_job(run_flight_ingestion, "interval", hours=24, id="flight_ingestion")
 
     # OpenWeatherMap: hourly
     scheduler.add_job(run_weather_ingestion, "interval", hours=1, id="weather_ingestion")
