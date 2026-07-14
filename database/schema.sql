@@ -1,5 +1,6 @@
 -- database/schema.sql
--- Run with: psql -U postgres -d airline_delay_intelligence -f database/schema.sql
+-- Run against your configured DATABASE_URL, e.g.:
+--   psql "$DATABASE_URL" -f database/schema.sql
 
 CREATE TABLE IF NOT EXISTS airports (
     code            VARCHAR(4) PRIMARY KEY,   -- IATA code, e.g. 'DOH'
@@ -17,27 +18,27 @@ CREATE TABLE IF NOT EXISTS flights (
     airline                 VARCHAR(80),
     origin                  VARCHAR(4) REFERENCES airports(code),
     destination             VARCHAR(4) REFERENCES airports(code),
-    scheduled_departure     TIMESTAMP,
-    actual_departure        TIMESTAMP,
-    scheduled_arrival       TIMESTAMP,
-    actual_arrival          TIMESTAMP,
+    scheduled_departure     TIMESTAMPTZ,
+    actual_departure        TIMESTAMPTZ,
+    scheduled_arrival       TIMESTAMPTZ,
+    actual_arrival          TIMESTAMPTZ,
     aircraft_registration   VARCHAR(20),
     status                  VARCHAR(20),        -- scheduled, active, landed, cancelled, incident, diverted
     delay_minutes           INTEGER,
-    fetched_at              TIMESTAMP DEFAULT NOW(),
+    fetched_at              TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (flight_number, scheduled_departure)  -- avoid duplicate rows on repeated polling
 );
 
 CREATE TABLE IF NOT EXISTS weather_snapshots (
     id              SERIAL PRIMARY KEY,
     airport_code    VARCHAR(4) REFERENCES airports(code),
-    recorded_at     TIMESTAMP,
+    recorded_at     TIMESTAMPTZ,
     temperature_c   DOUBLE PRECISION,
     wind_speed_ms   DOUBLE PRECISION,
     visibility_m    INTEGER,
     precipitation_mm DOUBLE PRECISION,
     condition_code  VARCHAR(50),
-    fetched_at      TIMESTAMP DEFAULT NOW()
+    fetched_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS predictions (
@@ -46,7 +47,7 @@ CREATE TABLE IF NOT EXISTS predictions (
     predicted_delay_probability DOUBLE PRECISION,
     predicted_delay_minutes     DOUBLE PRECISION,
     model_version                VARCHAR(20),
-    predicted_at                 TIMESTAMP DEFAULT NOW()
+    predicted_at                 TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS cascade_links (
@@ -55,7 +56,7 @@ CREATE TABLE IF NOT EXISTS cascade_links (
     upstream_flight_id    INTEGER REFERENCES flights(id),
     downstream_flight_id  INTEGER REFERENCES flights(id),
     turnaround_minutes    INTEGER,
-    created_at            TIMESTAMP DEFAULT NOW()
+    created_at            TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Seed the initial hub airport. Add more later (DXB, SIN, etc.)
