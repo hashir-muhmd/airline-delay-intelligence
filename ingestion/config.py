@@ -11,8 +11,24 @@ load_dotenv()
 
 AVIATIONSTACK_API_KEY = os.getenv("AVIATIONSTACK_API_KEY")
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost:5432/airline_delay_intelligence")
+# Fail fast and clearly at startup if required secrets are missing, rather
+# than silently sending None to an API (burning a request before failing)
+# or connecting with a wrong/default database.
+_missing = []
+if not AVIATIONSTACK_API_KEY:
+    _missing.append("AVIATIONSTACK_API_KEY")
+if not OPENWEATHER_API_KEY:
+    _missing.append("OPENWEATHER_API_KEY")
+if not DATABASE_URL:
+    _missing.append("DATABASE_URL")
+
+if _missing:
+    raise RuntimeError(
+        f"Missing required environment variable(s): {', '.join(_missing)}. "
+        f"Check your .env file or Railway environment variables."
+    )
 
 # Airports tracked by the ingestion service.
 # code: IATA code, lat/lon: for weather lookups
