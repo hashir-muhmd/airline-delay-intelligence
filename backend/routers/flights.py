@@ -14,6 +14,16 @@ router = APIRouter()
 # "not enough data yet" message.
 MIN_FLIGHTS_FOR_STATS = 5
 
+# Plausible bounds for delay_minutes. Commercial flights essentially never
+# depart more than ~60 min ahead of schedule, and delays stretching past
+# ~12 hours are more likely bad data (e.g. AviationStack returning a stale
+# or mismatched actual_departure from a different day) than a genuine
+# still-active delay. Found via a real case: QR8407 on 2026-07-14 showed
+# delay_minutes = -847 because actual_departure was ~14 hours before its
+# own scheduled_departure -- physically impossible for that flight.
+MIN_PLAUSIBLE_DELAY_MINUTES = -60
+MAX_PLAUSIBLE_DELAY_MINUTES = 720
+
 
 @router.get("/airports", response_model=list[AirportOut])
 def list_airports(db: Session = Depends(get_db)):
@@ -123,40 +133,56 @@ def get_delay_stats(db: Session = Depends(get_db)):
                     delay_minutes
                 FROM flights
                 ORDER BY scheduled_departure, actual_departure, origin, destination, flight_number
+            ),
+            plausible AS (
+                SELECT delay_minutes
+                FROM physical_flights
+                WHERE delay_minutes IS NOT NULL
+                  AND delay_minutes BETWEEN :min_delay AND :max_delay
             )
             SELECT
-                COUNT(*) AS physical_flights_total,
-                COUNT(delay_minutes) AS physical_flights_with_delay_data,
-                AVG(delay_minutes) AS mean_minutes,
-                MIN(delay_minutes) AS min_minutes,
-                PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY delay_minutes) AS p25_minutes,
-                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY delay_minutes) AS median_minutes,
-                PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY delay_minutes) AS p75_minutes,
-                MAX(delay_minutes) AS max_minutes
-            FROM physical_flights
+                (SELECT COUNT(*) FROM physical_flights) AS physical_flights_total,
+                (SELECT COUNT(*) FROM physical_flights WHERE delay_minutes IS NOT NULL) AS physical_flights_with_delay_data,
+                (SELECT COUNT(*) FROM physical_flights
+                    WHERE delay_minutes IS NOT NULL
+                    AND delay_minutes NOT BETWEEN :min_delay AND :max_delay) AS physical_flights_excluded_anomalous,
+                (SELECT COUNT(*) FROM plausible) AS count,
+                (SELECT AVG(delay_minutes) FROM plausible) AS mean_minutes,
+                (SELECT MIN(delay_minutes) FROM plausible) AS min_minutes,
+                (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY delay_minutes) FROM plausible) AS p25_minutes,
+                (SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY delay_minutes) FROM plausible) AS median_minutes,
+                (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY delay_minutes) FROM plausible) AS p75_minutes,
+                (SELECT MAX(delay_minutes) FROM plausible) AS max_minutes
             """
-        )
+        ),
+        {
+            "min_delay": MIN_PLAUSIBLE_DELAY_MINUTES,
+            "max_delay": MAX_PLAUSIBLE_DELAY_MINUTES,
+        },
     )
     row = result.mappings().first()
 
     physical_flights_total = row["physical_flights_total"]
-    count = row["physical_flights_with_delay_data"]
+    excluded_anomalous = row["physical_flights_excluded_anomalous"]
+    count = row["count"]
 
     if count <= MIN_FLIGHTS_FOR_STATS:
         return DelayStatsOut(
             physical_flights_total=physical_flights_total,
-            physical_flights_with_delay_data=count,
+            physical_flights_with_delay_data=row["physical_flights_with_delay_data"],
+            physical_flights_excluded_anomalous=excluded_anomalous,
             count=count,
             message=(
-                f"Not enough delay data yet for a meaningful distribution "
-                f"({count} physical flights with delay data; need more than "
+                f"Not enough plausible delay data yet for a meaningful distribution "
+                f"({count} physical flights within plausible bounds; need more than "
                 f"{MIN_FLIGHTS_FOR_STATS}). Revisit after more ingestion."
             ),
         )
 
     return DelayStatsOut(
         physical_flights_total=physical_flights_total,
-        physical_flights_with_delay_data=count,
+        physical_flights_with_delay_data=row["physical_flights_with_delay_data"],
+        physical_flights_excluded_anomalous=excluded_anomalous,
         count=count,
         mean_minutes=round(row["mean_minutes"], 2) if row["mean_minutes"] is not None else None,
         min_minutes=row["min_minutes"],
@@ -164,4 +190,9 @@ def get_delay_stats(db: Session = Depends(get_db)):
         median_minutes=row["median_minutes"],
         p75_minutes=row["p75_minutes"],
         max_minutes=row["max_minutes"],
+        message=(
+            f"{excluded_anomalous} physical flight(s) excluded as anomalous "
+            f"(delay outside {MIN_PLAUSIBLE_DELAY_MINUTES} to {MAX_PLAUSIBLE_DELAY_MINUTES} minutes)."
+            if excluded_anomalous > 0 else None
+        ),
     )

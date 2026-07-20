@@ -46,6 +46,7 @@ class DelayStatsOut(BaseModel):
 
     physical_flights_total: int
     physical_flights_with_delay_data: int
+    physical_flights_excluded_anomalous: int
     count: int
     mean_minutes: Optional[float] = None
     min_minutes: Optional[int] = None
