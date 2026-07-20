@@ -55,3 +55,28 @@ class DelayStatsOut(BaseModel):
     p75_minutes: Optional[float] = None
     max_minutes: Optional[int] = None
     message: Optional[str] = None
+
+
+class PhysicalFlightOut(BaseModel):
+    """
+    Response shape for GET /flights/physical -- a de-duplicated physical
+    flight, with codeshares collapsed into flight_numbers/num_codeshares.
+    Mirrors the aggregation in notebooks/01_eda.ipynb exactly (same
+    grouping key, same "first after sorting by flight_number" tie-break
+    for single-valued fields).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    scheduled_departure: Optional[datetime] = None
+    actual_departure: Optional[datetime] = None
+    origin: str
+    destination: str
+    flight_numbers: str
+    num_codeshares: int
+    airline_primary: Optional[str] = None
+    scheduled_arrival: Optional[datetime] = None
+    actual_arrival: Optional[datetime] = None
+    status: str
+    delay_minutes: Optional[int] = None
+    aircraft_registration: Optional[str] = None

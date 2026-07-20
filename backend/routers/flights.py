@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from database import get_db
-from schemas import AirportOut, DelayStatsOut, FlightOut
+from schemas import AirportOut, DelayStatsOut, FlightOut, PhysicalFlightOut
 
 router = APIRouter()
 
@@ -82,6 +82,67 @@ def list_flights(
     result = db.execute(text(query), params)
     rows = result.mappings().all()
     return [FlightOut.model_validate(dict(row)) for row in rows]
+
+
+@router.get("/flights/physical", response_model=list[PhysicalFlightOut])
+def list_physical_flights(
+    limit: int = Query(50, ge=1, le=500, description="Max rows to return"),
+    origin: Optional[str] = Query(None, min_length=3, max_length=3, description="Filter by origin IATA code"),
+    destination: Optional[str] = Query(None, min_length=3, max_length=3, description="Filter by destination IATA code"),
+    db: Session = Depends(get_db),
+):
+    """
+    De-duplicated physical flights, with codeshares collapsed into a
+    single row each. Mirrors notebooks/01_eda.ipynb's aggregation:
+    grouped on (scheduled_departure, actual_departure, origin,
+    destination), flight_numbers joined as a comma-separated string,
+    and single-valued fields (airline, status, delay_minutes, etc.)
+    taken as the "first" row after sorting by flight_number -- same
+    tie-break rule the notebook uses.
+
+    Unlike GET /flights, this collapses codeshares (e.g. 9 marketing
+    flight numbers for one physical departure) into one row, so
+    num_codeshares > 1 tells you a flight is shared across airlines.
+
+    NOTE: this must be registered BEFORE /flights/{flight_id} below --
+    FastAPI/Starlette matches routes in registration order, and a literal
+    path segment like "physical" would otherwise be swallowed by the
+    {flight_id}: int path parameter, causing a 422 int-parsing error.
+    """
+    query = """
+        SELECT
+            scheduled_departure, actual_departure, origin, destination,
+            string_agg(flight_number, ', ' ORDER BY flight_number) AS flight_numbers,
+            COUNT(flight_number) AS num_codeshares,
+            (array_agg(airline ORDER BY flight_number))[1] AS airline_primary,
+            (array_agg(scheduled_arrival ORDER BY flight_number))[1] AS scheduled_arrival,
+            (array_agg(actual_arrival ORDER BY flight_number))[1] AS actual_arrival,
+            (array_agg(status ORDER BY flight_number))[1] AS status,
+            (array_agg(delay_minutes ORDER BY flight_number))[1] AS delay_minutes,
+            (array_agg(aircraft_registration ORDER BY flight_number))[1] AS aircraft_registration
+        FROM flights
+        WHERE 1=1
+    """
+    params = {}
+
+    if origin:
+        query += " AND origin = :origin"
+        params["origin"] = origin.upper()
+
+    if destination:
+        query += " AND destination = :destination"
+        params["destination"] = destination.upper()
+
+    query += """
+        GROUP BY scheduled_departure, actual_departure, origin, destination
+        ORDER BY scheduled_departure DESC NULLS LAST
+        LIMIT :limit
+    """
+    params["limit"] = limit
+
+    result = db.execute(text(query), params)
+    rows = result.mappings().all()
+    return [PhysicalFlightOut.model_validate(dict(row)) for row in rows]
 
 
 @router.get("/flights/{flight_id}", response_model=FlightOut)
