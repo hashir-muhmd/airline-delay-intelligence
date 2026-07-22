@@ -1,0 +1,27 @@
+.main-nav {
+  display: flex;
+  gap: 8px;
+  padding: 0 32px;
+  background-color: var(--color-bg-panel);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nav-link {
+  text-decoration: none;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  padding: 14px 16px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-link:hover {
+  color: var(--color-text-primary);
+}
+
+.nav-link-active {
+  color: var(--color-signal-green);
+  border-bottom-color: var(--color-signal-green);
+}

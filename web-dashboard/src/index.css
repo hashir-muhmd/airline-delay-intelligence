@@ -1,0 +1,49 @@
+:root {
+  /* Design tokens — SkyPulse radar-scope theme */
+  --color-bg: #0A0E1A;
+  --color-bg-panel: #10182B;
+  --color-border: #1E2A44;
+  --color-text-primary: #E8ECF4;
+  --color-text-secondary: #8290AB;
+  --color-signal-green: #00D9A3;
+  --color-signal-amber: #FFB020;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: var(--font-mono);
+}

@@ -1,0 +1,77 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background-color: var(--color-bg-panel);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-logo {
+  color: var(--color-signal-green);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.topbar-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  letter-spacing: 0.05em;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+}
+
+.status-dot-connecting {
+  background-color: var(--color-signal-amber);
+}
+
+.status-dot-online {
+  background-color: var(--color-signal-green);
+  box-shadow: 0 0 6px rgba(0, 217, 163, 0.6);
+}
+
+.status-dot-offline {
+  background-color: #FF4D4D;
+}
+
+.main-content {
+  flex: 1;
+  padding: 32px;
+}
+
+.placeholder-text {
+  color: var(--color-text-secondary);
+}
+
+.page-placeholder {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}

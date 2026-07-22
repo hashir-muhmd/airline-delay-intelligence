@@ -1,0 +1,133 @@
+.radar-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  flex-wrap: wrap;
+  padding: 64px 32px;
+}
+
+.radar-scope {
+  position: relative;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 217, 163, 0.04) 0%, transparent 70%);
+  flex-shrink: 0;
+}
+
+.radar-ring {
+  position: absolute;
+  border: 1px solid rgba(0, 217, 163, 0.25);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.ring-1 { width: 85%; height: 85%; }
+.ring-2 { width: 62%; height: 62%; }
+.ring-3 { width: 40%; height: 40%; }
+.ring-4 { width: 18%; height: 18%; }
+
+.radar-crosshair {
+  position: absolute;
+  background: rgba(0, 217, 163, 0.15);
+}
+.radar-crosshair-h {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+.radar-crosshair-v {
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  transform: translateX(-50%);
+}
+
+.radar-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    rgba(0, 217, 163, 0.35) 0deg,
+    rgba(0, 217, 163, 0.08) 25deg,
+    transparent 60deg,
+    transparent 360deg
+  );
+  animation: sweep-rotate 4s linear infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes sweep-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.radar-hub {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-signal-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(0, 217, 163, 0.5);
+}
+
+.radar-hub-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-signal-green);
+  letter-spacing: 0.05em;
+}
+
+.radar-blip {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-signal-amber);
+  animation: blip-pulse 3.5s ease-in-out infinite;
+}
+
+@keyframes blip-pulse {
+  0%, 100% { opacity: 0; transform: scale(0.6); }
+  15%, 40% { opacity: 1; transform: scale(1); }
+  60% { opacity: 0; transform: scale(0.6); }
+}
+
+.radar-hero-text {
+  max-width: 360px;
+}
+
+.radar-hero-text h1 {
+  font-size: 42px;
+  margin-bottom: 12px;
+  letter-spacing: 0.01em;
+}
+
+.radar-hero-text p {
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .radar-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+}
