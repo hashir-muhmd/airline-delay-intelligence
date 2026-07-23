@@ -1,20 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { fetchJSON } from '../api'
 import './Flights.css'
 
 function formatTime(iso) {
   if (!iso) return '—'
-  // NOTE: AviationStack/ingestion appears to label Doha local time (AST) with
-  // a "Z" (UTC) suffix — confirmed by cross-checking QR87 against HIA's own
-  // site (raw "02:20:00Z" matches HIA's displayed "02:20" local departure).
-  // Displaying the raw UTC-suffixed components directly, without conversion,
-  // since converting them (as if they were true UTC) produces the wrong time.
-  // Root cause belongs in ingestion/ — see project log open items.
+  // NOTE: AviationStack/ingestion appears to label each station's local time
+  // with a "Z" (UTC) suffix — confirmed for DOH-departures by cross-checking
+  // QR87 against HIA's own site (raw "02:20:00Z" matches HIA's displayed
+  // "02:20" local departure). For non-DOH stations, scheduled_departure /
+  // scheduled_arrival are each in THAT station's local time, same
+  // "Z"-mislabeling convention. dohEventTime() below only ever reads the
+  // DOH-side field for a given flight, which sidesteps needing every other
+  // station's real UTC offset. Root cause belongs in ingestion/ — see
+  // project log open items.
   const match = iso.match(/T(\d{2}):(\d{2})/)
   if (!match) return iso
   const [, hour, minute] = match
-  const datePart = iso.slice(5, 10).replace('-', ' ') // "MM-DD" → "MM DD"
+  const datePart = iso.slice(5, 10).replace('-', ' ')
   return `${datePart} ${hour}:${minute} AST`
+}
+
+// Returns the Doha-side event time (as a sortable Date-ish string) and
+// whether it's a departure from or arrival into DOH.
+function dohEventTime(flight) {
+  if (flight.origin === 'DOH') {
+    return { time: flight.scheduled_departure, kind: 'DEP' }
+  }
+  if (flight.destination === 'DOH') {
+    return { time: flight.scheduled_arrival, kind: 'ARR' }
+  }
+  return { time: flight.scheduled_departure, kind: '—' }
 }
 
 function DelayBadge({ delayMinutes, status }) {
@@ -57,9 +72,70 @@ function FlightNumbers({ raw, count }) {
   )
 }
 
+function StatusDropdown({ value, options, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const label = value === 'all'
+    ? 'All statuses'
+    : value.charAt(0).toUpperCase() + value.slice(1)
+
+  return (
+    <div className="status-dropdown" ref={ref}>
+      <button
+        className="status-dropdown-trigger"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span>{label}</span>
+        <span className={`status-dropdown-caret ${open ? 'status-dropdown-caret-open' : ''}`}>▾</span>
+      </button>
+      {open && (
+        <div className="status-dropdown-menu">
+          <button
+            className={`status-dropdown-item ${value === 'all' ? 'status-dropdown-item-active' : ''}`}
+            onClick={() => {
+              onChange('all')
+              setOpen(false)
+            }}
+          >
+            All statuses
+          </button>
+          {options.map((s) => (
+            <button
+              key={s}
+              className={`status-dropdown-item ${value === s ? 'status-dropdown-item-active' : ''}`}
+              onClick={() => {
+                onChange(s)
+                setOpen(false)
+              }}
+            >
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Flights() {
   const [flights, setFlights] = useState(null)
   const [error, setError] = useState(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [directionFilter, setDirectionFilter] = useState('all') // 'all' | 'DEP' | 'ARR'
+  const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => {
     let cancelled = false
@@ -74,6 +150,47 @@ function Flights() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    setSearching(true)
+    const timer = setTimeout(() => {
+      setSearch(searchInput)
+      setSearching(false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  const statusOptions = useMemo(() => {
+    if (!flights) return []
+    return [...new Set(flights.map((f) => f.status))].sort()
+  }, [flights])
+
+  const processed = useMemo(() => {
+    if (!flights) return []
+
+    const withMeta = flights.map((f) => ({
+      ...f,
+      _doh: dohEventTime(f),
+    }))
+
+    const q = search.trim().toUpperCase()
+
+    const filtered = withMeta.filter((f) => {
+      if (directionFilter !== 'all' && f._doh.kind !== directionFilter) return false
+      if (statusFilter !== 'all' && f.status !== statusFilter) return false
+      if (q) {
+        const haystack = `${f.flight_numbers} ${f.origin} ${f.destination} ${f.airline_primary}`.toUpperCase()
+        if (!haystack.includes(q)) return false
+      }
+      return true
+    })
+
+    return filtered.sort((a, b) => {
+      if (!a._doh.time) return 1
+      if (!b._doh.time) return -1
+      return a._doh.time.localeCompare(b._doh.time)
+    })
+  }, [flights, search, directionFilter, statusFilter])
 
   if (error) {
     return (
@@ -95,51 +212,100 @@ function Flights() {
     )
   }
 
-  if (flights.length === 0) {
-    return (
-      <div>
-        <h2>Live Flights</h2>
-        <p className="page-placeholder">No flight data available yet.</p>
-      </div>
-    )
-  }
-
   return (
     <div>
       <h2>Live Flights</h2>
-      <p className="flights-count">{flights.length} physical flights tracked</p>
-      <div className="flights-table-wrap">
-        <table className="flights-table">
-          <thead>
-            <tr>
-              <th>Departs</th>
-              <th>Route</th>
-              <th>Flight</th>
-              <th>Airline</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {flights.map((f, i) => (
-              <tr key={i}>
-                <td>{formatTime(f.scheduled_departure)}</td>
-                <td className="route-cell">
-                  <span className="route-code">{f.origin}</span>
-                  <span className="route-arrow">→</span>
-                  <span className="route-code">{f.destination}</span>
-                </td>
-                <td>
-                  <FlightNumbers raw={f.flight_numbers} count={f.num_codeshares} />
-                </td>
-                <td className="airline-cell">{f.airline_primary}</td>
-                <td>
-                  <DelayBadge delayMinutes={f.delay_minutes} status={f.status} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <p className="flights-count">
+        {processed.length} of {flights.length} physical flights shown
+      </p>
+
+      <div className="flights-toolbar">
+        <div className="flights-search-wrap">
+          <input
+            className="flights-search"
+            type="text"
+            placeholder="Search flight, route, or airline"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+          {searching ? (
+            <span className="flights-search-spinner" />
+          ) : (
+            <span className="flights-search-icon">⌕</span>
+          )}
+        </div>
+
+        <div className="flights-direction-toggle">
+          <button
+            className={directionFilter === 'all' ? 'toggle-btn toggle-btn-active' : 'toggle-btn'}
+            onClick={() => setDirectionFilter('all')}
+          >
+            All
+          </button>
+          <button
+            className={directionFilter === 'DEP' ? 'toggle-btn toggle-btn-active' : 'toggle-btn'}
+            onClick={() => setDirectionFilter('DEP')}
+          >
+            Departures
+          </button>
+          <button
+            className={directionFilter === 'ARR' ? 'toggle-btn toggle-btn-active' : 'toggle-btn'}
+            onClick={() => setDirectionFilter('ARR')}
+          >
+            Arrivals
+          </button>
+        </div>
+
+        <StatusDropdown
+          value={statusFilter}
+          options={statusOptions}
+          onChange={setStatusFilter}
+        />
       </div>
+
+      {processed.length === 0 ? (
+        <p className="page-placeholder">No flights match your filters.</p>
+      ) : (
+        <div className="flights-table-wrap">
+          <table className="flights-table">
+            <thead>
+              <tr>
+                <th>DOH Time</th>
+                <th>Route</th>
+                <th>Flight</th>
+                <th>Airline</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {processed.map((f, i) => (
+                <tr key={i}>
+                  <td>
+                    <span className="doh-time-cell">
+                      {formatTime(f._doh.time)}
+                      <span className={`doh-time-kind doh-time-kind-${f._doh.kind.toLowerCase()}`}>
+                        {f._doh.kind}
+                      </span>
+                    </span>
+                  </td>
+                  <td className="route-cell">
+                    <span className="route-code">{f.origin}</span>
+                    <span className="route-arrow">→</span>
+                    <span className="route-code">{f.destination}</span>
+                  </td>
+                  <td>
+                    <FlightNumbers raw={f.flight_numbers} count={f.num_codeshares} />
+                  </td>
+                  <td className="airline-cell">{f.airline_primary}</td>
+                  <td>
+                    <DelayBadge delayMinutes={f.delay_minutes} status={f.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

@@ -9,6 +9,176 @@
   font-size: 14px;
 }
 
+.flights-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 28px;
+  padding: 16px 20px;
+  background-color: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.flights-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+}
+
+.flights-search-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+.flights-search-spinner {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-signal-green);
+  border-radius: 50%;
+  animation: search-spin 0.6s linear infinite;
+}
+
+@keyframes search-spin {
+  to { transform: rotate(360deg); }
+}
+
+.flights-search {
+  width: 100%;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 11px 42px 11px 18px;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  transition: border-color 0.15s ease;
+}
+
+.flights-search:focus {
+  outline: none;
+  border-color: var(--color-signal-green);
+}
+
+.flights-search::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.flights-direction-toggle {
+  display: flex;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.toggle-btn {
+  background-color: transparent;
+  border: none;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.toggle-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.toggle-btn-active {
+  color: var(--color-bg);
+  background-color: var(--color-signal-green);
+  font-weight: 500;
+}
+
+.status-dropdown {
+  position: relative;
+}
+
+.status-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 10px 18px;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.status-dropdown-trigger:hover {
+  border-color: var(--color-signal-green);
+}
+
+.status-dropdown-caret {
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+
+.status-dropdown-caret-open {
+  transform: rotate(180deg);
+}
+
+.status-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background-color: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 20;
+}
+
+.status-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 12px;
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.status-dropdown-item:hover {
+  background-color: rgba(0, 217, 163, 0.08);
+  color: var(--color-text-primary);
+}
+
+.status-dropdown-item-active {
+  color: var(--color-signal-green);
+  font-weight: 500;
+}
+
 .flights-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--color-border);
@@ -124,4 +294,28 @@
 .badge-red {
   background-color: rgba(255, 77, 77, 0.12);
   color: #FF6B6B;
+}
+
+.doh-time-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.doh-time-kind {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+
+.doh-time-kind-dep {
+  background-color: rgba(0, 217, 163, 0.12);
+  color: var(--color-signal-green);
+}
+
+.doh-time-kind-arr {
+  background-color: rgba(255, 176, 32, 0.12);
+  color: var(--color-signal-amber);
 }
