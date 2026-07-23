@@ -6,6 +6,7 @@ import Flights from './pages/Flights'
 import DelayStats from './pages/DelayStats'
 import CascadeRisk from './pages/CascadeRisk'
 import Airports from './pages/Airports'
+import { fetchJSON } from './api'
 import './App.css'
 
 const API_BASE = 'http://localhost:8000'
@@ -18,9 +19,7 @@ function App() {
 
     async function checkHealth() {
       try {
-        const res = await fetch(`${API_BASE}/health`)
-        if (!res.ok) throw new Error('bad response')
-        const data = await res.json()
+        const data = await fetchJSON('/health')
         if (!cancelled) {
           setStatus(data.status === 'ok' ? 'online' : 'offline')
         }

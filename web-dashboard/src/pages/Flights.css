@@ -1,0 +1,127 @@
+.flights-count {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  margin: 4px 0 20px 0;
+}
+
+.flights-error {
+  color: #FF8080;
+  font-size: 14px;
+}
+
+.flights-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.flights-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.flights-table thead {
+  background-color: var(--color-bg-panel);
+}
+
+.flights-table th {
+  text-align: left;
+  padding: 12px 16px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.flights-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.flights-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.flights-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.route-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.route-code {
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.route-arrow {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.airline-cell {
+  color: var(--color-text-secondary);
+}
+
+.flight-number-primary {
+  font-weight: 500;
+}
+
+.flight-numbers-toggle {
+  background: none;
+  border: none;
+  color: var(--color-signal-green);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+}
+
+.flight-numbers-toggle:hover {
+  text-decoration: underline;
+}
+
+.flight-numbers-list {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  max-width: 320px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.badge-neutral {
+  background-color: rgba(130, 144, 171, 0.15);
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+
+.badge-green {
+  background-color: rgba(0, 217, 163, 0.12);
+  color: var(--color-signal-green);
+}
+
+.badge-amber {
+  background-color: rgba(255, 176, 32, 0.12);
+  color: var(--color-signal-amber);
+}
+
+.badge-red {
+  background-color: rgba(255, 77, 77, 0.12);
+  color: #FF6B6B;
+}
