@@ -4,20 +4,18 @@ import './Flights.css'
 
 function formatTime(iso) {
   if (!iso) return '—'
-  // NOTE: AviationStack/ingestion appears to label each station's local time
-  // with a "Z" (UTC) suffix — confirmed for DOH-departures by cross-checking
-  // QR87 against HIA's own site (raw "02:20:00Z" matches HIA's displayed
-  // "02:20" local departure). For non-DOH stations, scheduled_departure /
-  // scheduled_arrival are each in THAT station's local time, same
-  // "Z"-mislabeling convention. dohEventTime() below only ever reads the
-  // DOH-side field for a given flight, which sidesteps needing every other
-  // station's real UTC offset. Root cause belongs in ingestion/ — see
-  // project log open items.
-  const match = iso.match(/T(\d{2}):(\d{2})/)
-  if (!match) return iso
-  const [, hour, minute] = match
-  const datePart = iso.slice(5, 10).replace('-', ' ')
-  return `${datePart} ${hour}:${minute} AST`
+  // Ingestion now stores true UTC (fixed at the source, plus a one-time
+  // historical backfill for DOH-side fields — see project log open item #1).
+  // dohEventTime() below only ever reads the DOH-side field for a given
+  // flight, so a flat +3h (Asia/Qatar, no DST) is always correct here.
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  const doh = new Date(date.getTime() + 3 * 60 * 60 * 1000)
+  const month = String(doh.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(doh.getUTCDate()).padStart(2, '0')
+  const hour = String(doh.getUTCHours()).padStart(2, '0')
+  const minute = String(doh.getUTCMinutes()).padStart(2, '0')
+  return `${month} ${day} ${hour}:${minute} AST`
 }
 
 // Returns the Doha-side event time (as a sortable Date-ish string) and
