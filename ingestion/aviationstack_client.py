@@ -8,18 +8,78 @@ for each tracked airport in as few calls as possible. Each call can return up
 to 100 flights, so a single call captures a full snapshot of airport activity.
 """
 
+import logging
+import re
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from config import AVIATIONSTACK_API_KEY, AVIATIONSTACK_BASE_URL, TRACKED_AIRPORTS
 
+logger = logging.getLogger(__name__)
 
-def _parse_datetime(value):
+_UTC = ZoneInfo("UTC")
+
+# AviationStack usually sends an IANA timezone name (e.g. "Asia/Qatar"), but
+# for some stations it instead sends a raw numeric UTC offset (e.g. "+8",
+# "-5", "+05:30"). This regex catches that second format.
+_OFFSET_RE = re.compile(r"^([+-])(\d{1,2})(?::?(\d{2}))?$")
+
+
+def _resolve_timezone(timezone_name):
+    """
+    Resolve a timezone field from AviationStack into a usable tzinfo,
+    whether it's an IANA name or a raw numeric UTC offset. Returns None if
+    it can't be resolved (missing, or a format we don't recognize).
+    """
+    if not timezone_name:
+        return None
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        pass
+    match = _OFFSET_RE.match(timezone_name.strip())
+    if match:
+        sign, hours, minutes = match.groups()
+        delta = timedelta(hours=int(hours), minutes=int(minutes) if minutes else 0)
+        if sign == "-":
+            delta = -delta
+        return timezone(delta)
+    return None
+
+
+def _parse_datetime(value, timezone_name=None):
+    """
+    Parse an AviationStack scheduled/actual timestamp.
+
+    AviationStack tags these timestamps with a UTC offset (or trailing "Z"),
+    but the wall-clock value is actually the STATION'S OWN LOCAL TIME, not
+    true UTC -- confirmed by cross-checking QR87 (DOH departure) and AT5741
+    (Perth->DOH arrival) against Hamad International's own live flight-status
+    site. So we discard the (incorrect) offset AviationStack attaches, keep
+    only the naive date/time, and localize it ourselves using the
+    `timezone` field AviationStack provides on each departure/arrival block
+    (either an IANA name like "Asia/Qatar", or sometimes a raw numeric
+    offset like "+8" -- see _resolve_timezone above).
+    """
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+    naive_local = parsed.replace(tzinfo=None)
+
+    station_tz = _resolve_timezone(timezone_name)
+    if station_tz is None:
+        logger.warning(
+            "Could not resolve station timezone %r for timestamp %r; "
+            "storing naive value as UTC (may be wrong -- investigate this flight).",
+            timezone_name, value,
+        )
+        return naive_local.replace(tzinfo=_UTC)
+
+    return naive_local.replace(tzinfo=station_tz).astimezone(_UTC)
 
 
 def _compute_delay_minutes(scheduled, actual):
@@ -35,10 +95,13 @@ def _flight_to_row(raw: dict) -> dict:
     airline = raw.get("airline", {}) or {}
     aircraft = raw.get("aircraft", {}) or {}
 
-    scheduled_departure = _parse_datetime(departure.get("scheduled"))
-    actual_departure = _parse_datetime(departure.get("actual"))
-    scheduled_arrival = _parse_datetime(arrival.get("scheduled"))
-    actual_arrival = _parse_datetime(arrival.get("actual"))
+    departure_tz = departure.get("timezone")
+    arrival_tz = arrival.get("timezone")
+
+    scheduled_departure = _parse_datetime(departure.get("scheduled"), departure_tz)
+    actual_departure = _parse_datetime(departure.get("actual"), departure_tz)
+    scheduled_arrival = _parse_datetime(arrival.get("scheduled"), arrival_tz)
+    actual_arrival = _parse_datetime(arrival.get("actual"), arrival_tz)
 
     return {
         "flight_number": flight.get("iata") or flight.get("icao") or "UNKNOWN",
