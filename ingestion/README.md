@@ -1,17 +1,22 @@
 # Ingestion
 
 Scheduled service that polls flight and weather APIs and writes to PostgreSQL.
-Deployed 24/7 on Railway (connected to this repo's `main` branch — pushing
-here auto-redeploys).
+Deployed 24/7 on Railway. Auto-redeploys only when files under `ingestion/`
+change (Watch Paths scoped to `/ingestion/**`).
 
 ## Contents
 - `aviationstack_client.py` — live flight status/delay data
 - `weather_client.py` — OpenWeatherMap airport weather
-- `scheduler.py` — polling job (flights ~3x/day to respect AviationStack's
+- `scheduler.py` — polling job (flights once daily to respect AviationStack's
   100 req/month free tier; weather hourly, well within 1,000 req/day free tier)
-- `config.py` — tracked airports/routes (includes DOH as primary hub)
+- `config.py` — tracked airports/routes (currently DOH only, as primary hub)
 
 Status: running continuously in production on Railway since 2026-07-10.
+
+**Known limitation**: the scheduler runs an immediate poll on every process
+start, in addition to the 24-hour interval. Frequent restarts/redeploys can
+therefore consume more than the intended 1 call/day — see open items in the
+project log.
 
 ## Known data characteristics
 
