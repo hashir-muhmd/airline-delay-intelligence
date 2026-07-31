@@ -26,7 +26,7 @@ app = FastAPI(
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://airline-delay-intelligence.vercel.app",  # update once you see the real one
+    "https://airline-delay-intelligence-njvidutoe-hashir-muhmd1.vercel.app",
 ]
 
 app.add_middleware(
