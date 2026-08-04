@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS flights (
     scheduled_arrival       TIMESTAMPTZ,
     actual_arrival          TIMESTAMPTZ,
     aircraft_registration   VARCHAR(20),
+    aircraft_icao24         VARCHAR(10),
     status                  VARCHAR(20),        -- scheduled, active, landed, cancelled, incident, diverted
     delay_minutes           INTEGER,
     fetched_at              TIMESTAMPTZ DEFAULT NOW(),
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS predictions (
 CREATE TABLE IF NOT EXISTS cascade_links (
     id                  SERIAL PRIMARY KEY,
     aircraft_registration VARCHAR(20),
+    aircraft_icao24       VARCHAR(10),
     upstream_flight_id    INTEGER REFERENCES flights(id),
     downstream_flight_id  INTEGER REFERENCES flights(id),
     turnaround_minutes    INTEGER,
