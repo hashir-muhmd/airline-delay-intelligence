@@ -32,6 +32,7 @@ class FlightOut(BaseModel):
     scheduled_arrival: Optional[datetime] = None
     actual_arrival: Optional[datetime] = None
     aircraft_registration: Optional[str] = None
+    aircraft_icao24: Optional[str] = None
     status: str
     delay_minutes: Optional[int] = None
     fetched_at: Optional[datetime] = None
@@ -80,3 +81,4 @@ class PhysicalFlightOut(BaseModel):
     status: str
     delay_minutes: Optional[int] = None
     aircraft_registration: Optional[str] = None
+    aircraft_icao24: Optional[str] = None

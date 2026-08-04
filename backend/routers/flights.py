@@ -62,7 +62,7 @@ def list_flights(
         SELECT id, flight_number, airline, origin, destination,
                scheduled_departure, actual_departure,
                scheduled_arrival, actual_arrival,
-               aircraft_registration, status, delay_minutes, fetched_at
+               aircraft_registration, aircraft_icao24, status, delay_minutes, fetched_at
         FROM flights
         WHERE 1=1
     """
@@ -119,7 +119,8 @@ def list_physical_flights(
             (array_agg(actual_arrival ORDER BY flight_number))[1] AS actual_arrival,
             (array_agg(status ORDER BY flight_number))[1] AS status,
             (array_agg(delay_minutes ORDER BY flight_number))[1] AS delay_minutes,
-            (array_agg(aircraft_registration ORDER BY flight_number))[1] AS aircraft_registration
+            (array_agg(aircraft_registration ORDER BY flight_number))[1] AS aircraft_registration,
+            (array_agg(aircraft_icao24 ORDER BY flight_number))[1] AS aircraft_icao24
         FROM flights
         WHERE 1=1
     """
@@ -154,7 +155,7 @@ def get_flight(flight_id: int, db: Session = Depends(get_db)):
             SELECT id, flight_number, airline, origin, destination,
                    scheduled_departure, actual_departure,
                    scheduled_arrival, actual_arrival,
-                   aircraft_registration, status, delay_minutes, fetched_at
+                   aircraft_registration, aircraft_icao24, status, delay_minutes, fetched_at
             FROM flights
             WHERE id = :flight_id
             """
