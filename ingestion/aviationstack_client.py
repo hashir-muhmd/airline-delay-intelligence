@@ -113,6 +113,7 @@ def _flight_to_row(raw: dict) -> dict:
         "scheduled_arrival": scheduled_arrival,
         "actual_arrival": actual_arrival,
         "aircraft_registration": aircraft.get("registration"),
+        "aircraft_icao24": aircraft.get("icao24"),
         "status": raw.get("flight_status"),
         "delay_minutes": _compute_delay_minutes(scheduled_departure, actual_departure),
     }

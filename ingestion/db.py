@@ -52,16 +52,17 @@ def insert_flight(conn, flight: dict):
                     flight_number, airline, origin, destination,
                     scheduled_departure, actual_departure,
                     scheduled_arrival, actual_arrival,
-                    aircraft_registration, status, delay_minutes
+                    aircraft_registration, aircraft_icao24, status, delay_minutes
                 )
                 VALUES (%(flight_number)s, %(airline)s, %(origin)s, %(destination)s,
                         %(scheduled_departure)s, %(actual_departure)s,
                         %(scheduled_arrival)s, %(actual_arrival)s,
-                        %(aircraft_registration)s, %(status)s, %(delay_minutes)s)
+                        %(aircraft_registration)s, %(aircraft_icao24)s, %(status)s, %(delay_minutes)s)
                 ON CONFLICT (flight_number, scheduled_departure)
                 DO UPDATE SET
                     actual_departure = EXCLUDED.actual_departure,
                     actual_arrival = EXCLUDED.actual_arrival,
+                    aircraft_icao24 = COALESCE(EXCLUDED.aircraft_icao24, flights.aircraft_icao24),
                     status = EXCLUDED.status,
                     delay_minutes = EXCLUDED.delay_minutes,
                     fetched_at = NOW()
