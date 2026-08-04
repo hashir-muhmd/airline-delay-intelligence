@@ -272,6 +272,7 @@ function Flights() {
                 <th>Route</th>
                 <th>Flight</th>
                 <th>Airline</th>
+                <th>Aircraft</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -295,6 +296,15 @@ function Flights() {
                     <FlightNumbers raw={f.flight_numbers} count={f.num_codeshares} />
                   </td>
                   <td className="airline-cell">{f.airline_primary}</td>
+                  <td>
+                    {f.aircraft_icao24 ? (
+                      <span className="aircraft-icao24" title="Aircraft transponder code (ICAO24) — used to link a flight to its physical aircraft. Not available for scheduled flights that haven't started tracking yet.">
+                        {f.aircraft_icao24}
+                      </span>
+                    ) : (
+                      <span className="aircraft-icao24 aircraft-icao24-empty">—</span>
+                    )}
+                  </td>
                   <td>
                     <DelayBadge delayMinutes={f.delay_minutes} status={f.status} />
                   </td>
