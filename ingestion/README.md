@@ -54,6 +54,32 @@ This is expected airline-industry behavior, not a data bug. Implication:
 - Cascade modeling can safely ignore this, since codeshares share the same
   aircraft rotation anyway.
 
+### `aircraft_registration` is always null on the free tier — use `aircraft_icao24` instead
+Confirmed via direct inspection of raw AviationStack API responses (multiple
+active DOH flights checked): `aircraft.registration` (the human-readable tail
+number, e.g. "A7-BCD") comes back `null` on every single flight, regardless
+of flight status. This is not a parsing bug in `_flight_to_row()` — the field
+is genuinely absent in AviationStack's response on the free tier.
+
+However, `aircraft.icao24` (the aircraft's Mode-S transponder hex code, e.g.
+`"06A2F7"`) **is** populated and confirmed working. It's a less
+human-readable identifier than a tail number, but it's a real, stable,
+per-aircraft unique ID — sufficient for linking flights to the same physical
+aircraft for cascade-delay modeling, which is all `aircraft_registration` was
+ever needed for in this project.
+
+As a result: `flights.aircraft_icao24` and `cascade_links.aircraft_icao24`
+were added (migrations `004` and `005`), and ingestion now captures
+`icao24` alongside the still-present-but-always-null `registration` field
+(kept in the schema rather than dropped, in case a future paid-tier upgrade
+ever populates it — no schema change would be needed to start using it then).
+
+**Note**: this only affects flights ingested after this fix shipped.
+Historical rows ingested before this change have `aircraft_icao24 = NULL`
+retroactively, since the raw API responses at the time weren't stored beyond
+what was mapped into the schema then in use — there's nothing to backfill
+from.
+
 ### Airport enrichment status
 Resolved 2026-07-12. All airport rows are enriched with real metadata (name,
 city, country, latitude, longitude) sourced from the OurAirports public
@@ -68,3 +94,7 @@ degraded or placeholder-like data (mismatched timestamps, a non-existent
 airline name) rather than cleanly erroring out on every request. If unusual
 rows appear (e.g. an unrecognized airline code), check whether they coincide
 with a quota-exhaustion window before assuming a code-level bug.
+
+# git add ingestion/README.md
+git commit -m "Document aircraft_registration free-tier limitation and aircraft_icao24 resolution in ingestion README"
+git push
