@@ -8,7 +8,7 @@ time features, route, airline, and nearest weather snapshot at the origin
 airport. Does NOT use actual_departure/actual_arrival as features, since
 those are only known after the fact and would leak the answer.
 
-IMPORTANT: as of this writing, only ~55 physical flights have delay data.
+IMPORTANT: as of this writing, only ~90 physical flights have delay data.
 This script is intentionally simple (LogisticRegression, not a heavier
 model) because a complex model on this little data would just overfit and
 produce misleadingly confident-looking metrics. Its purpose right now is to
@@ -39,7 +39,7 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sqlalchemy import create_engine
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -150,7 +150,7 @@ def engineer_features(physical: pd.DataFrame) -> pd.DataFrame:
 def build_labeled_dataset(physical: pd.DataFrame) -> pd.DataFrame:
     """
     Keep only flights that actually have a delay_minutes value (i.e. have
-    completed departure) -- this is the ~55-row subset as of this writing.
+    completed departure) -- this is the ~90-row subset as of this writing.
     """
     labeled = physical.dropna(subset=["delay_minutes"]).copy()
     labeled["is_delayed"] = (labeled["delay_minutes"] > DELAY_THRESHOLD_MINUTES).astype(int)
@@ -170,6 +170,14 @@ CATEGORICAL_FEATURES = ["origin", "destination", "airline_primary"]
 
 
 def build_pipeline() -> Pipeline:
+    # NOTE: numeric features span very different scales (e.g. scheduled_hour
+    # 0-23 vs. visibility_m potentially in the thousands), which was causing
+    # LogisticRegression's solver to hit its iteration cap without properly
+    # converging (a ConvergenceWarning, first seen once weather features
+    # with wide ranges started being included). StandardScaler fixes this
+    # at the root cause -- rescaling features so no single one dominates
+    # the optimization -- rather than just raising max_iter and hoping it
+    # converges anyway on a badly-scaled problem.
     preprocessor = ColumnTransformer(
         transformers=[
             (
@@ -177,13 +185,13 @@ def build_pipeline() -> Pipeline:
                 OneHotEncoder(handle_unknown="ignore"),
                 CATEGORICAL_FEATURES,
             ),
+            (
+                "numeric",
+                StandardScaler(),
+                NUMERIC_FEATURES,
+            ),
         ],
-        remainder="passthrough",  # numeric features pass through as-is
     )
-    # NOTE: numeric features may contain NaN (missing weather match). With
-    # this few rows we don't want to silently drop them, so we fill with
-    # the column median as a simple, transparent imputation -- revisit once
-    # weather coverage/volume improves.
     model = LogisticRegression(max_iter=1000, class_weight="balanced")
     return Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
 
