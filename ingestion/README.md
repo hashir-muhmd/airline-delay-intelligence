@@ -98,10 +98,19 @@ were added (migrations `004` and `005`), and ingestion now captures
 (kept in the schema rather than dropped, in case a future paid-tier upgrade
 ever populates it — no schema change would be needed to start using it then).
 
-Note: `icao24`, like `registration`, appears tied to live/active tracking
-data — it's expected to be null for flights still in `"scheduled"` status,
-and only populate once a flight transitions to `"active"` and is re-polled.
-This is a real transponder-data limitation, not a bug in the new code.
+**Correction (2026-08-05)**: an earlier version of this note claimed
+`icao24` only populates once a flight transitions to `"active"` status,
+by analogy with how `registration` seemed tied to live tracking data. Direct
+observation of the live dashboard has since shown this to be **inaccurate**:
+several still-`"scheduled"` flights already carry a real `icao24` value
+(e.g. `AI9110` DOH→COK, `MH9321` DOH→IST), meaning the airframe assigned to
+a scheduled rotation is often already known to AviationStack ahead of
+departure, not only once transponder tracking begins. Coverage is still
+partial, though — many scheduled flights in the same dashboard view showed
+`null` — so availability appears to depend more on the airline/route than
+on flight status specifically. Treat `icao24` as "populated for a
+meaningful subset of flights, not guaranteed for any given one," rather
+than "only available once active."
 
 **Note**: this only affects flights ingested after this fix shipped.
 Historical rows ingested before this change have `aircraft_icao24 = NULL`
@@ -110,12 +119,13 @@ what was mapped into the schema then in use — there's nothing to backfill
 from.
 
 ### Airport enrichment status
-Resolved 2026-07-12. All airport rows are enriched with real metadata (name,
-city, country, latitude, longitude) sourced from the OurAirports public
-dataset (https://ourairports.com/data/airports.csv), matched by IATA code.
-See `scripts/enrich_airports.py`. As new airports appear (new routes/
-destinations), re-run this script to enrich them — it only updates rows
-currently missing name/latitude, so it's safe to re-run anytime.
+Resolved 2026-07-12, and re-verified 2026-08-05 after a re-run of
+`scripts/enrich_airports.py` picked up 40 newly-appeared stub rows (new
+destinations added since the original enrichment pass) — all 40 matched
+successfully against OurAirports, bringing coverage to 167/167 (100%). As
+new destinations continue to appear, re-run this script periodically; it's
+safe to re-run anytime since it only updates rows currently missing
+name/latitude.
 
 ### AviationStack free-tier data quality under quota pressure
 When the monthly quota is exhausted, AviationStack has occasionally returned
