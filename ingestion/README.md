@@ -54,6 +54,30 @@ This is expected airline-industry behavior, not a data bug. Implication:
 - Cascade modeling can safely ignore this, since codeshares share the same
   aircraft rotation anyway.
 
+### "AlphaSky" codeshare entries — real airline, implausible codeshare (unresolved)
+Occasionally an `AS`-prefixed flight number (e.g. `AS5903`) appears as a
+codeshare partner on a Qatar Airways route, attributed to the airline name
+"AlphaSky". **AlphaSky is confirmed to be a real airline** (Alpha Sky LLP, a
+small cargo carrier based in Shymkent, Kazakhstan, IATA code `AS`, ICAO code
+`JAG`, founded 2023) — this is not fabricated/garbage data the way a
+non-existent airline name would be.
+
+However, it's implausible as an actual codeshare partner: cargo carriers
+essentially never codeshare passenger flights, and a 4-aircraft Kazakhstan
+cargo operator codesharing a Dhaka–Doha passenger route with Qatar Airways
+doesn't match normal airline commercial practice. The more likely
+explanation is an **IATA code collision** — `AS` is a short, commonly
+reused 2-letter code, and AviationStack's airline-code resolution may be
+misattributing a different actual `AS`-coded carrier to "AlphaSky."
+
+**Not yet root-caused.** Documented here so this doesn't get mistaken for
+either (a) fabricated/garbage data, since AlphaSky is real, or (b) a
+legitimate codeshare, since the pairing doesn't make operational sense.
+Treat `AS`-attributed codeshare entries with caution in any analysis that
+depends on airline identity being correct; the flight's route/timing data
+itself is likely still accurate, only the codeshare airline attribution is
+in question.
+
 ### `aircraft_registration` is always null on the free tier — use `aircraft_icao24` instead
 Confirmed via direct inspection of raw AviationStack API responses (multiple
 active DOH flights checked): `aircraft.registration` (the human-readable tail
@@ -74,6 +98,11 @@ were added (migrations `004` and `005`), and ingestion now captures
 (kept in the schema rather than dropped, in case a future paid-tier upgrade
 ever populates it — no schema change would be needed to start using it then).
 
+Note: `icao24`, like `registration`, appears tied to live/active tracking
+data — it's expected to be null for flights still in `"scheduled"` status,
+and only populate once a flight transitions to `"active"` and is re-polled.
+This is a real transponder-data limitation, not a bug in the new code.
+
 **Note**: this only affects flights ingested after this fix shipped.
 Historical rows ingested before this change have `aircraft_icao24 = NULL`
 retroactively, since the raw API responses at the time weren't stored beyond
@@ -93,8 +122,7 @@ When the monthly quota is exhausted, AviationStack has occasionally returned
 degraded or placeholder-like data (mismatched timestamps, a non-existent
 airline name) rather than cleanly erroring out on every request. If unusual
 rows appear (e.g. an unrecognized airline code), check whether they coincide
-with a quota-exhaustion window before assuming a code-level bug.
-
-# git add ingestion/README.md
-git commit -m "Document aircraft_registration free-tier limitation and aircraft_icao24 resolution in ingestion README"
-git push
+with a quota-exhaustion window before assuming a code-level bug. Note that
+the "AlphaSky" anomaly above was observed under healthy, non-exhausted quota
+conditions (6/100 used), so it's a separate issue from this one, not another
+instance of it.
