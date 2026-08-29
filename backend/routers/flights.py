@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from database import get_db
-from schemas import AirportOut, DelayStatsOut, FlightOut, PhysicalFlightOut
+from schemas import AirportOut, CascadeStatsOut, DelayStatsOut, FlightOut, PhysicalFlightOut
 
 router = APIRouter()
 
@@ -23,6 +23,13 @@ MIN_FLIGHTS_FOR_STATS = 5
 # own scheduled_departure -- physically impossible for that flight.
 MIN_PLAUSIBLE_DELAY_MINUTES = -60
 MAX_PLAUSIBLE_DELAY_MINUTES = 720
+
+# Mirrors ml/cascade_link_diagnostic.py exactly. If those values ever
+# change there, update here too -- kept as two separate constants
+# (not imported from ml/) since the backend and ml/ are deliberately
+# separate deployable units with no shared import path.
+MIN_TURNAROUND_MINUTES = 30
+MAX_TURNAROUND_MINUTES = 6 * 60
 
 
 @router.get("/airports", response_model=list[AirportOut])
@@ -257,4 +264,65 @@ def get_delay_stats(db: Session = Depends(get_db)):
             f"(delay outside {MIN_PLAUSIBLE_DELAY_MINUTES} to {MAX_PLAUSIBLE_DELAY_MINUTES} minutes)."
             if excluded_anomalous > 0 else None
         ),
+    )
+
+
+@router.get("/cascade/stats", response_model=CascadeStatsOut)
+def get_cascade_stats(db: Session = Depends(get_db)):
+    """
+    Live cascade-link candidate count, computed with the exact same
+    matching definition as ml/cascade_link_diagnostic.py: same
+    aircraft_icao24 on both flights, flight B departs from the airport
+    flight A arrived at, and the gap between them falls within a
+    plausible turnaround window (MIN_TURNAROUND_MINUTES to
+    MAX_TURNAROUND_MINUTES). This lets the dashboard show a live,
+    always-current number instead of the static snapshot the diagnostic
+    script's last manual run produced.
+    """
+    result = db.execute(
+        text(
+            """
+            WITH icao_flights AS (
+                SELECT id, origin, destination, scheduled_departure,
+                       scheduled_arrival, aircraft_icao24, delay_minutes
+                FROM flights
+                WHERE aircraft_icao24 IS NOT NULL
+            ),
+            candidates AS (
+                SELECT
+                    a.delay_minutes AS upstream_delay_minutes,
+                    d.delay_minutes AS downstream_delay_minutes
+                FROM icao_flights a
+                JOIN icao_flights d
+                    ON a.aircraft_icao24 = d.aircraft_icao24
+                    AND a.id != d.id
+                    AND d.origin = a.destination
+                WHERE a.scheduled_arrival IS NOT NULL
+                  AND d.scheduled_departure IS NOT NULL
+                  AND EXTRACT(EPOCH FROM (d.scheduled_departure - a.scheduled_arrival)) / 60
+                      BETWEEN :min_turnaround AND :max_turnaround
+            )
+            SELECT
+                (SELECT COUNT(*) FROM icao_flights) AS flights_with_icao24,
+                (SELECT COUNT(DISTINCT aircraft_icao24) FROM icao_flights) AS distinct_aircraft,
+                (SELECT COUNT(*) FROM candidates) AS candidate_count,
+                (SELECT COUNT(*) FROM candidates
+                    WHERE upstream_delay_minutes IS NOT NULL
+                      AND downstream_delay_minutes IS NOT NULL) AS candidates_with_both_delays
+            """
+        ),
+        {
+            "min_turnaround": MIN_TURNAROUND_MINUTES,
+            "max_turnaround": MAX_TURNAROUND_MINUTES,
+        },
+    )
+    row = result.mappings().first()
+
+    return CascadeStatsOut(
+        flights_with_icao24=row["flights_with_icao24"],
+        distinct_aircraft=row["distinct_aircraft"],
+        candidate_count=row["candidate_count"],
+        candidates_with_both_delays=row["candidates_with_both_delays"],
+        min_turnaround_minutes=MIN_TURNAROUND_MINUTES,
+        max_turnaround_minutes=MAX_TURNAROUND_MINUTES,
     )

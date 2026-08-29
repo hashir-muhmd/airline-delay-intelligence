@@ -82,3 +82,20 @@ class PhysicalFlightOut(BaseModel):
     delay_minutes: Optional[int] = None
     aircraft_registration: Optional[str] = None
     aircraft_icao24: Optional[str] = None
+    
+    
+class CascadeStatsOut(BaseModel):
+    """
+    Response shape for GET /cascade/stats. Mirrors the matching logic in
+    ml/cascade_link_diagnostic.py exactly (same aircraft_icao24 on both
+    flights, arrival->departure at the same airport, turnaround window
+    between MIN and MAX minutes), so the number shown on the dashboard
+    always agrees with what that offline script would report.
+    """
+
+    flights_with_icao24: int
+    distinct_aircraft: int
+    candidate_count: int
+    candidates_with_both_delays: int
+    min_turnaround_minutes: int
+    max_turnaround_minutes: int      
