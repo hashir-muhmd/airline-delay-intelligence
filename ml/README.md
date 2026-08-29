@@ -2,6 +2,22 @@
 
 Training scripts and saved model artifacts.
 
+## ⚠️ Dataset reset note (2026-08-23)
+
+Railway's trial credit ran out while the project was on a break, taking the
+live backend, ingestion, and Postgres instance offline. Rather than pay for
+a new billing cycle, development moved to a **local Postgres instance**
+restored from an earlier local snapshot (schema + migrations re-applied,
+but only ~400 old flight rows, not the ~6,800+ that had accumulated on
+Railway). Ingestion is now running locally via `scheduler.py` and
+accumulating fresh data again.
+
+**Practical effect**: the numbers below are smaller and less stable than
+the pre-reset numbers documented earlier in this project's history — not
+because anything broke, but because the labeled-row count restarted from a
+lower base. Treat every metric below as even more of a pipeline-sanity-check
+than usual, and expect these to improve as local ingestion continues to run.
+
 ## Contents
 
 - `train_classifier.py` — delay classifier (delayed vs on-time). **Built and
@@ -11,6 +27,10 @@ Training scripts and saved model artifacts.
 - `cascade_link_diagnostic.py` — diagnostic script checking whether any
   real cascade-link candidates (same-aircraft arrival→departure pairs)
   currently exist in the data. **Built and running.** See status below.
+  As of this session, the same matching logic is also exposed live via
+  `GET /cascade/stats` on the backend, so the dashboard's Cascade Risk page
+  shows a real-time version of this same check instead of a static snapshot
+  from the last manual script run.
 - `cascade_model.py` — downstream disruption propagation via aircraft
   rotation. Not yet started — blocked on cascade-link data volume (see
   `cascade_link_diagnostic.py` status below), not on a missing field
@@ -49,29 +69,27 @@ uneven ranges — e.g. `visibility_m` in the thousands vs. `scheduled_hour`
 its iteration cap without converging (`ConvergenceWarning`). Fixed by adding
 `StandardScaler` to the numeric feature branch of the pipeline — addresses
 the root cause (badly-scaled features), not just the symptom (raising
-`max_iter` and hoping it converges anyway). Re-running after this fix
-produced identical metrics to before, confirming the fix only improved
-numerical stability, not the model's actual behavior.
+`max_iter` and hoping it converges anyway).
 
 ### Current real numbers (informational, not a performance claim)
 
-As of the most recent run: **90 labeled flights** (78 delayed, 12 on-time —
-an ~87% delayed base rate, essentially unchanged from earlier runs at lower
-volume, and unchanged even as raw flight volume grew to 6,826 — recent
-ingestion has mostly added still-`scheduled` flights without delay data
-yet, not completed ones). Naive baseline accuracy: 0.85. Model accuracy:
-0.74 — lower than the baseline, which is expected and intentional given the
-class-balancing tradeoff (the model favors correctly catching on-time
-flights over maximizing raw accuracy on this heavily imbalanced, still-small
-sample).
+**Post-reset run (2026-08-23), on the local rebuilt dataset**: only **10
+labeled flights** (9 delayed, 1 on-time — severely imbalanced, and small
+enough that the stratified train/test split failed outright and the script
+fell back to a plain random split). Naive baseline accuracy: 1.00 (trivial,
+given the 1-row minority class landed entirely in training). Model
+accuracy: 0.667 on a 3-row test set. **These numbers are not meaningful on
+their own** — they confirm the pipeline still runs correctly end-to-end
+after the dataset reset, nothing more. Re-run every few days as local
+ingestion accumulates more labeled rows; the pre-reset run (90 labeled
+rows, 0.74 model vs 0.85 baseline accuracy) is a better reference point for
+what this pipeline looks like at a slightly more reasonable sample size,
+though even that was still below the ~200-row bar for trustworthy metrics.
 
 **This is a pipeline-validation checkpoint, not a production model.** Below
 ~200 labeled rows (see `MIN_ROWS_FOR_REASONABLE_METRICS` in the script), any
 metric produced is a sanity check that the code works, not a trustworthy
-estimate of real-world performance. Retrain once delay-labeled data volume
-grows meaningfully — either through continued daily accumulation or an
-AviationStack Historical Flights backfill (currently locked on the free
-tier).
+estimate of real-world performance.
 
 ## `train_regressor.py` — status
 
@@ -93,61 +111,61 @@ than letting a single bad data point distort a small sample.
 
 ### Current real numbers (informational, not a performance claim)
 
-As of the most recent run: **89 labeled flights** (1 excluded as
-implausible), delay range **-35 to +60 minutes**, mean **28.6**, median
-**28.0**. Naive baseline (always predict the training mean): **10.0 min
-MAE**. Model: **12.2 min MAE, RMSE 14.2 min, R² = -0.337**.
+**Post-reset run (2026-08-23), on the local rebuilt dataset**: **10 labeled
+flights**, delay range **13–61 minutes**, mean **34.8**, median **33.0**.
+Naive baseline (always predict the training mean, 33.7 min): **15.4 min
+MAE**. Model: **18.5 min MAE, RMSE 19.4 min, R² = -0.103**.
 
-**Honest read of this result**: the model currently performs *worse* than
-simply guessing the average delay every time — the negative R² confirms it
-isn't finding usable signal in the available features yet. This is a
-genuine, informative negative result, not a broken pipeline. With delays
-clustered fairly tightly (mostly 0–60 minutes) and only 89 rows, there
-isn't much variance left for scheduled-hour/weather/route features to
-meaningfully explain. Ridge regression correctly shrinks toward the mean
-under weak signal rather than overfitting noise, which is exactly what this
-result reflects.
+Same honest read as the pre-reset finding: the model still doesn't beat
+guessing the mean, which is expected and unremarkable at 10 rows. The
+pre-reset run (89 labeled rows, R² = -0.337) remains the more informative
+reference point — this result mainly confirms the pipeline still functions
+correctly post-reset, not that anything has changed about the underlying
+signal-to-noise question.
 
 **This is a pipeline-validation checkpoint, not a production model** — more
 so than the classifier, given it currently underperforms the simplest
-possible baseline. Do not present these specific numbers as a working
-prediction system. Retrain once delay-labeled data volume grows
-meaningfully; a negative R² at 89 rows says nothing definitive about
-whether the underlying relationship is learnable with more data — most
-likely it is, this sample just isn't large enough yet to show it.
+possible baseline. Retrain periodically as local ingestion accumulates
+more labeled data; a negative R² at this sample size says nothing
+definitive about whether the underlying relationship is learnable with
+more data — most likely it is, this sample just isn't large enough yet to
+show it.
 
 ## `cascade_link_diagnostic.py` — status
 
-**Built and running, currently returns zero cascade-link candidates.**
+**Built and running, currently returns zero cascade-link candidates** —
+consistent with every prior run, both before and after the local dataset
+reset.
+
 Checks whether any two flights share the same `aircraft_icao24` with a
 plausible turnaround pattern: flight A arrives somewhere, flight B departs
 from that same airport, with a 30-minute-to-6-hour gap between them
 (physically plausible turnaround window).
 
-As of the most recent run (2026-08-06): **219 flights have a non-null
-`aircraft_icao24`**, across **84 distinct aircraft** — up substantially
-from the previous check (97 flights / 29 aircraft on 2026-08-05) — but
-still **0 valid arrival→departure pairs** were found.
+**Post-reset run (2026-08-23)**: **123 flights have a non-null
+`aircraft_icao24`**, across **29 distinct aircraft** — still **0 valid
+arrival→departure pairs** found, matching the exact same structural
+conclusion reached pre-reset (last pre-reset check: 219 flights / 84
+aircraft, also 0 pairs). The result staying at zero across two independent
+dataset builds (old Railway data and now this local rebuild) is further
+evidence this is a structural limitation of DOH-only tracking, not a
+data-volume or one-off artifact.
 
-This more-than-doubling of aircraft coverage with the result staying at
-zero strengthens the structural explanation over a "just needs more time"
-explanation: if this were purely a volume problem, some candidates would be
-expected to start appearing by now. The most likely explanation remains
-structural: since only DOH is tracked, an aircraft's full rotation is only
-visible to us if **both** its inbound leg to DOH and its outbound leg from
-DOH happen to be captured in the same data pull — if either leg is a
-flight to/from an airport we don't track, that half of the chain is
-invisible, and no link can be formed even if `icao24` matches correctly on
-both sides. Adding more tracked airports would directly address this (at
-the cost of AviationStack quota — see `ingestion/README.md`), and is now
-the more clearly indicated next step if cascade modeling is to become
-viable, rather than simply waiting longer on the current DOH-only setup.
+Since only DOH is tracked, an aircraft's full rotation is only visible to
+us if **both** its inbound leg to DOH and its outbound leg from DOH happen
+to be captured in the same data pull — if either leg is a flight to/from an
+airport we don't track, that half of the chain is invisible, and no link
+can be formed even if `icao24` matches correctly on both sides. Adding more
+tracked airports would directly address this (at the cost of AviationStack
+quota — see `ingestion/README.md`), and remains the clearly indicated next
+step if cascade modeling is to become viable.
 
-`cascade_model.py` remains un-started and correctly blocked on this —
-there's no point building a model with zero training pairs. Re-run this
-diagnostic periodically; the moment it finds even a handful of candidate
-pairs with delay data on both sides, that's the signal to revisit
-`cascade_model.py`.
+`cascade_model.py` remains un-started and correctly blocked on this. This
+same matching logic is now also exposed live via the backend's
+`GET /cascade/stats` endpoint (see `backend/routers/flights.py`), which the
+dashboard's Cascade Risk page calls directly — so this diagnostic script
+and the dashboard will always report the same number without needing a
+manual re-run to stay in sync.
 
 ## Running
 
@@ -161,4 +179,6 @@ python cascade_link_diagnostic.py
 
 Requires the same `DATABASE_URL` used by `backend/` and `ingestion/` (loaded
 from `../ingestion/.env` by default — see each script's `load_dotenv` call
-if your `.env` lives elsewhere).
+if your `.env` lives elsewhere). As of the local dataset reset, this points
+at a local Postgres instance rather than Railway — see the note at the top
+of this file.
