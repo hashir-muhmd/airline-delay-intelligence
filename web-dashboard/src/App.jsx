@@ -9,8 +9,6 @@ import Airports from './pages/Airports'
 import { fetchJSON } from './api'
 import './App.css'
 
-const API_BASE = 'http://localhost:8000'
-
 function App() {
   const [status, setStatus] = useState('connecting') // 'connecting' | 'online' | 'offline'
 

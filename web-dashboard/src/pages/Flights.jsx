@@ -4,10 +4,11 @@ import './Flights.css'
 
 function formatTime(iso) {
   if (!iso) return '—'
-  // Ingestion now stores true UTC (fixed at the source, plus a one-time
-  // historical backfill for DOH-side fields — see project log open item #1).
-  // dohEventTime() below only ever reads the DOH-side field for a given
-  // flight, so a flat +3h (Asia/Qatar, no DST) is always correct here.
+  // Ingestion stores true UTC (the AviationStack timezone-mislabeling bug
+  // was fixed at the source, plus a one-time historical backfill was run
+  // for DOH-side fields). dohEventTime() below only ever reads the
+  // DOH-side field for a given flight, so a flat +3h (Asia/Qatar, no DST)
+  // is always correct here.
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
   const doh = new Date(date.getTime() + 3 * 60 * 60 * 1000)
