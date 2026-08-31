@@ -13,13 +13,14 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late final AnimationController _fadeController;
+  Timer? _navigateTimer;
 
   @override
   void initState() {
     super.initState();
     _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..forward();
 
-    Timer(const Duration(milliseconds: 1600), () {
+    _navigateTimer = Timer(const Duration(milliseconds: 1600), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const MainTabScreen()),
@@ -30,6 +31,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   void dispose() {
+    _navigateTimer?.cancel();
     _fadeController.dispose();
     super.dispose();
   }
