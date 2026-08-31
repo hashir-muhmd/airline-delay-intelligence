@@ -10,15 +10,17 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError(
         "DATABASE_URL is not set. Make sure backend/.env exists and contains "
-        "a valid DATABASE_URL pointing at the Railway Postgres instance."
+        "a valid DATABASE_URL pointing at your Postgres instance (see "
+        "backend/.env.example)."
     )
 
 # Single Engine, created once at process startup. This manages a connection
 # pool internally -- we are NOT opening one connection for the whole app's
 # lifetime, and we are NOT opening a new engine per request. pool_pre_ping
 # checks connections are alive before handing them out, which matters for a
-# long-running service talking to a remote (Railway) database that may drop
-# idle connections.
+# long-running service whose database connection may occasionally drop
+# (e.g. a local Postgres instance restarting, or previously, a remote
+# Railway database dropping idle connections).
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 # Factory that produces a new Session bound to the engine's pool each time

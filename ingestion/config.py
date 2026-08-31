@@ -27,7 +27,7 @@ if not DATABASE_URL:
 if _missing:
     raise RuntimeError(
         f"Missing required environment variable(s): {', '.join(_missing)}. "
-        f"Check your .env file or Railway environment variables."
+        f"Check your .env file (see ingestion/.env.example)."
     )
 
 # Airports tracked by the ingestion service.

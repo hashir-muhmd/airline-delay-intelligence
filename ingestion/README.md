@@ -1,8 +1,6 @@
 # Ingestion
 
-Scheduled service that polls flight and weather APIs and writes to PostgreSQL.
-Deployed 24/7 on Railway. Auto-redeploys only when files under `ingestion/`
-change (Watch Paths scoped to `/ingestion/**`).
+Scheduled service that polls flight and weather APIs and writes to PostgreSQL. Runs locally via `python scheduler.py`. Previously deployed 24/7 on Railway from 2026-07-10 through August 2026 — see the root `README.md`'s "Deployment history" section for what happened and why it's local-only now.
 
 ## Contents
 - `aviationstack_client.py` — live flight status/delay data, including
@@ -12,7 +10,8 @@ change (Watch Paths scoped to `/ingestion/**`).
   100 req/month free tier; weather hourly, well within 1,000 req/day free tier)
 - `config.py` — tracked airports/routes (currently DOH only, as primary hub)
 
-Status: running continuously in production on Railway since 2026-07-10.
+Status: runs on-demand or continuously (while the process stays open) on
+whichever machine it's started on. No longer running 24/7 in the cloud.
 
 ## Startup-poll quota safeguard
 
@@ -28,7 +27,9 @@ the `flights` table on startup. If existing data is less than 20 hours old,
 the startup poll is skipped and only the normal 24-hour interval job runs. If
 that freshness check itself fails for any reason, the scheduler defaults to
 **not** skipping — favoring occasional over-polling over silently never
-polling at all.
+polling at all. This safeguard remains just as relevant running locally,
+since restarting the local process (e.g. after closing a terminal) is now
+the equivalent of the redeploys that originally triggered the problem.
 
 ## Known data characteristics
 
@@ -37,7 +38,8 @@ AviationStack returns local timestamps but labels them with a UTC offset
 (effectively mislabeling local time as UTC). Ingestion re-localizes each
 timestamp using the API's separate `timezone` field before converting to true
 UTC. All DB timestamp columns are `TIMESTAMPTZ`. A historical backfill (~5,100
-rows) was run after this fix shipped to correct previously ingested data.
+rows) was run on the (now-retired) Railway-hosted database after this fix
+shipped, to correct previously ingested data.
 
 ### Codeshare duplication
 AviationStack returns each codeshare flight as a separate record, even when
@@ -122,10 +124,13 @@ from.
 Resolved 2026-07-12, and re-verified 2026-08-05 after a re-run of
 `scripts/enrich_airports.py` picked up 40 newly-appeared stub rows (new
 destinations added since the original enrichment pass) — all 40 matched
-successfully against OurAirports, bringing coverage to 167/167 (100%). As
-new destinations continue to appear, re-run this script periodically; it's
-safe to re-run anytime since it only updates rows currently missing
-name/latitude.
+successfully against OurAirports, bringing coverage to 167/167 (100%) on the
+Railway-hosted dataset at the time. Following the move to local development,
+the same script was re-run against the smaller local dataset (2026-08-23)
+and again reached 100% coverage (97/97 airports referenced at that point,
+0 unmatched). As new destinations continue to appear through local
+ingestion, re-run this script periodically; it's safe to re-run anytime
+since it only updates rows currently missing name/latitude.
 
 ### AviationStack free-tier data quality under quota pressure
 When the monthly quota is exhausted, AviationStack has occasionally returned

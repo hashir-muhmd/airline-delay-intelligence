@@ -22,9 +22,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 # If the most recent flight ingestion happened within this window, skip the
-# startup poll. Prevents burning API quota on every Railway redeploy/restart
-# (previously, every restart triggered an immediate poll on top of the
-# normal 24-hour interval, silently multiplying AviationStack calls).
+# startup poll. Prevents burning API quota on every process restart
+# (whether from a local terminal restart or, previously, a Railway
+# redeploy) -- without this check, every restart would trigger an
+# immediate poll on top of the normal 24-hour interval, silently
+# multiplying AviationStack calls.
 STARTUP_POLL_SKIP_WINDOW_HOURS = 20
 
 

@@ -1,17 +1,14 @@
 # Backend
 
-FastAPI service serving flight, airport, and delay-stats data to the web dashboard.
+FastAPI service serving flight, airport, delay-stats, and cascade-link data to the web dashboard.
 
-**Live**: https://amusing-grace-production-54d1.up.railway.app
-**Status**: built, tested, and deployed live on Railway (serverless mode — scales
-to zero when idle, so the first request after inactivity may take a few
-seconds to cold-start).
+**Status**: built, tested, currently runs locally. Previously deployed live on Railway (serverless mode) from early development through August 2026 — see the root `README.md`'s "Deployment history" section for what happened and why it's local-only now.
 
 ## Contents
 - `main.py` — app entrypoint, CORS config, `/health`
 - `database.py` — SQLAlchemy session setup
 - `schemas.py` — Pydantic response models
-- `routers/flights.py` — all flight, airport, and stats endpoints
+- `routers/flights.py` — all flight, airport, stats, and cascade endpoints
 
 ## Endpoints
 
@@ -21,23 +18,30 @@ seconds to cold-start).
   codeshare records that refer to the same underlying flight
 - `GET /flights/{flight_id}` — single flight detail
 - `GET /stats/delays` — aggregate delay statistics
+- `GET /cascade/stats` — live cascade-link candidate count, using the same
+  matching logic as `ml/cascade_link_diagnostic.py` (same aircraft,
+  arrival→departure at the same airport, plausible turnaround window)
 - `GET /airports` — list tracked airports
 
-## Deployment notes
+## Deployment notes (historical — Railway, retired)
 
-- Deployed on Railway as service `amusing-grace`, with Root Directory set to
-  `backend` and start command `uvicorn main:app --host 0.0.0.0 --port $PORT`.
-- `DATABASE_URL` is set via Railway's cross-service reference
-  (`${{Postgres.DATABASE_URL}}`), never hardcoded, so it stays in sync if the
-  database connection details change.
-- CORS is scoped to the dashboard's stable production domain
-  (`https://airline-delay-intelligence.vercel.app`) — not any per-deployment
-  Vercel preview URL, since those change on every redeploy.
+When this was deployed on Railway, the setup was:
+- Service `amusing-grace`, with Root Directory set to `backend` and start
+  command `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- `DATABASE_URL` set via Railway's cross-service reference
+  (`${{Postgres.DATABASE_URL}}`), never hardcoded, so it stayed in sync if
+  the database connection details changed
+- CORS scoped to the dashboard's stable production domain
+  (`https://airline-delay-intelligence.vercel.app`) — not any
+  per-deployment Vercel preview URL, since those change on every redeploy
+
+This is kept here for reference in case the project is redeployed in the
+future; it does not reflect the current running setup.
 
 ## Running locally
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # fill in DATABASE_URL
+cp .env.example .env   # fill in local DATABASE_URL
 uvicorn main:app --reload
 ```
