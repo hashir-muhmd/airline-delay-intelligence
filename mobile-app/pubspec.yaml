@@ -1,5 +1,5 @@
 name: skypulse_mobile
-description: "A new Flutter project."
+description: "SkyPulse mobile: live flight status and delay stats for Doha Hamad International (DOH)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

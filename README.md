@@ -40,11 +40,11 @@ Flight delays are one of the largest cost and customer-experience drivers in air
             |                           |
             v                           v
     REACT DASHBOARD              FLUTTER MOBILE APP
-    (ops view)                   (traveler-facing alerts)
+    (ops view)                   (traveler-facing view)
     5 pages: Overview, Live Flights,
-    Delay Stats, Cascade Risk, Airports --
-    all built and working against locally-run
-    backend data.
+    Delay Stats, Cascade Risk, Airports --      3 tabs: Overview, Flights, Stats --
+    all built and working against locally-run   live flights + delay stats + animated
+    backend data.                               radar, built and working locally.
 ```
 
 ## Tech stack
@@ -52,9 +52,9 @@ Flight delays are one of the largest cost and customer-experience drivers in air
 - **Ingestion**: Python, AviationStack API, OpenWeatherMap API — runs locally
 - **Database**: PostgreSQL — runs locally
 - **ML**: scikit-learn (classifier, regressor), pandas/SQL (cascade-link diagnostic). Prophet for forecasting — not yet started.
-- **Backend**: FastAPI — runs locally
+- **Backend**: FastAPI — runs locally, with a real pytest integration suite (see Testing below)
 - **Web dashboard**: React + Vite — deployed on Vercel (frontend only; see Deployment history for why the backend isn't currently live)
-- **Mobile app**: Flutter
+- **Mobile app**: Flutter — built and working locally, Android emulator tested
 - **Deployment**: see Deployment history below
 
 ## Deployment history
@@ -67,17 +67,17 @@ The Vercel-hosted dashboard above reflects the frontend only — the earlier Rai
 
 This project is being built incrementally with real commit history, not uploaded as a finished product. Current progress:
 
-- [x] Ingestion service — built, tested, runs locally on a daily polling schedule
+- [x] Ingestion service — built, runs locally on a daily polling schedule
 - [x] Database schema — TIMESTAMPTZ timezone handling, indexes, data-quality constraints
 - [x] Airport enrichment — all tracked airports have real name/city/country/coordinates (OurAirports)
 - [x] Initial exploratory data analysis — data health checks, codeshare de-duplication, delay distribution
-- [x] FastAPI backend — built, tested, runs locally
-- [x] React dashboard — Overview, Live Flights, Delay Stats, Cascade Risk, and Airports all built and tested against a locally-run backend
+- [x] FastAPI backend — built, runs locally, backed by a real pytest integration suite (`backend/test_main.py`)
+- [x] React dashboard — Overview, Live Flights, Delay Stats, Cascade Risk, and Airports all built and manually verified against a locally-run backend
 - [x] Cascade Risk dashboard page — live-updating (`GET /cascade/stats`), correctly reports 0 candidate pairs found so far, with the structural reason documented (see `ml/README.md`)
 - [x] Delay classification + regression models — built, run against real data, results honestly documented as pipeline-validation checkpoints (small sample size), not production-ready predictions
+- [x] Flutter mobile app — built, live flights + delay stats + animated radar, no predictions (see `mobile-app/README.md` for why)
 - [ ] Cascade propagation model — blocked on cascade-link candidate volume (structural DOH-only-tracking limitation, documented in `ml/README.md`)
 - [ ] Seasonal delay forecasting
-- [ ] Flutter mobile app
 - [ ] Docker Compose deployment + demo
 
 ## Repository structure
@@ -89,7 +89,7 @@ This project is being built incrementally with real commit history, not uploaded
 | `scripts/` | One-off utility scripts (e.g. airport enrichment) |
 | `notebooks/` | EDA and model development notebooks |
 | `ml/` | Training scripts and model artifacts |
-| `backend/` | FastAPI service |
+| `backend/` | FastAPI service, with integration tests |
 | `web-dashboard/` | React ops dashboard |
 | `mobile-app/` | Flutter traveler-facing app |
 
@@ -116,6 +116,7 @@ Runs fully locally in about 10 minutes. No paid services required.
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+
+- Flutter SDK (for the mobile app)
 - PostgreSQL, installed locally
 - API keys: [AviationStack](https://aviationstack.com/), [OpenWeatherMap](https://openweathermap.org/api) (both free tier)
 
@@ -146,6 +147,14 @@ npm install
 npm run dev
 ```
 
+### Mobile app
+```bash
+cd mobile-app
+flutter pub get
+flutter run
+```
+See `mobile-app/README.md` for emulator/device networking notes.
+
 ### ML scripts
 ```bash
 cd ml
@@ -154,6 +163,24 @@ python train_classifier.py
 python train_regressor.py
 python cascade_link_diagnostic.py
 ```
+
+## Testing
+
+The backend has a real pytest integration suite, run against a live local database rather than mocks — these confirm the full path (route → SQL query → response schema) actually works, not just that each piece looks correct in isolation:
+
+```bash
+cd backend
+pytest -v
+```
+
+The mobile app has a smoke test confirming it builds and renders correctly:
+
+```bash
+cd mobile-app
+flutter test
+```
+
+Neither the web dashboard nor the ML scripts have automated tests currently — the ML scripts are validated by their own printed baseline comparisons (see `ml/README.md`), and the dashboard has been manually verified against live backend data throughout development.
 
 ## License
 

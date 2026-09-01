@@ -21,8 +21,8 @@ app = FastAPI(
 # list here is low-risk for now.
 #
 # Includes both common local dev ports since Create React App defaults
-# to 3000 and Vite defaults to 5173 -- add the real deployed dashboard
-# URL here once it exists.
+# to 3000 and Vite defaults to 5173, plus the deployed dashboard URL
+# below (currently stale -- see root README's Deployment history).
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
